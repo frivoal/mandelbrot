@@ -49,7 +49,13 @@ OUTDIR ?= $(if $(findstring $(base_path),.),out,$(base_path)/out)
 ## @param 1: List of targets for which dependency files are unneeded
 deps_unneeded = $(and $(MAKECMDGOALS),$(findstring $(MAKECMDGOALS),$(filter $(1),$(MAKECMDGOALS))))
 
-## Expannd to the list of object files
+## Finds all the source files in speficied directories and their subdirectories.
+## Supported languages are c and c++.
+## @param 1: list of directories to search source files in. Each directory's
+##           path should be relative to base_path.
+find_sources = $(shell cd $(base_path) && find $1 -name "*.cpp" -or -name "*.c")
+
+## Expannds to the list of object files
 ## @param 1: List of c and c++ source files
 obj_from_src = $(patsubst %.c,%.o,$(filter %.c,$1)) $(patsubst %.cpp,%.o,$(filter %.cpp,$1))
 
@@ -86,7 +92,7 @@ clean:
 base_path := .
 src_dirs := src
 
-sources := $(shell cd $(base_path) && find $(src_dirs) -name "*.cpp" -or -name "*.c")
+sources := $(call find_sources,$(src_dirs))
 objects := $(addprefix $(OUTDIR)/,$(call obj_from_src,$(sources)))
 all: a.out
 
