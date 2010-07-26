@@ -55,9 +55,10 @@ deps_unneeded = $(and $(MAKECMDGOALS),$(findstring $(MAKECMDGOALS),$(filter $(1)
 ##           path should be relative to base_path.
 find_sources = $(shell cd $(base_path) && find $1 -name "*.cpp" -or -name "*.c")
 
-## Expands to the list of object files.
+## Expands to the list of object files, including their full path starting with
+## OUTDIR..
 ## @param 1: List of c and c++ source files
-obj_from_src = $(patsubst %.c,%.o,$(filter %.c,$1)) $(patsubst %.cpp,%.o,$(filter %.cpp,$1))
+obj_from_src = $(addprefix $(OUTDIR)/,$(patsubst %.c,%.o,$(filter %.c,$1)) $(patsubst %.cpp,%.o,$(filter %.cpp,$1)))
 
 ## Adds the directories to the include path of specified objects.
 ## @param 1: List of .o files
@@ -93,7 +94,7 @@ base_path := .
 src_dirs := src
 
 sources := $(call find_sources,$(src_dirs))
-objects := $(addprefix $(OUTDIR)/,$(call obj_from_src,$(sources)))
+objects := $(call obj_from_src,$(sources))
 all: a.out
 
 $(OUTDIR)/a.out: $(objects)
