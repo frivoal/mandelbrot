@@ -35,7 +35,7 @@
 # "Project specific section", the rest is meant to be generic and cross
 # project.
 
-# -- User overrideable commands --
+# -- User overridable commands --
 MKDIR := mkdir -p
 RM := rm -rf
 AR := ar r
@@ -49,17 +49,17 @@ OUTDIR ?= $(if $(findstring $(base_path),.),out,$(base_path)/out)
 ## @param 1: List of targets for which dependency files are unneeded
 deps_unneeded = $(and $(MAKECMDGOALS),$(findstring $(MAKECMDGOALS),$(filter $(1),$(MAKECMDGOALS))))
 
-## Finds all the source files in speficied directories and their subdirectories.
+## Finds all the source files in specified directories and their subdirectories.
 ## Supported languages are c and c++.
 ## @param 1: list of directories to search source files in. Each directory's
 ##           path should be relative to base_path.
 find_sources = $(shell cd $(base_path) && find $1 -name "*.cpp" -or -name "*.c")
 
-## Expannds to the list of object files
+## Expands to the list of object files.
 ## @param 1: List of c and c++ source files
 obj_from_src = $(patsubst %.c,%.o,$(filter %.c,$1)) $(patsubst %.cpp,%.o,$(filter %.cpp,$1))
 
-## Adds the directories to the inlcude path of specified objects
+## Adds the directories to the include path of specified objects.
 ## @param 1: List of .o files
 ## @param 2: List of directories to add to the include path of param 1's .o
 ##           files, and of the matching .d files
@@ -84,7 +84,7 @@ clean:
 #   'OUTDIR' is relative.
 # - the 'src_dirs' variable, which lists all the directories under which non
 #   generated source code shall be found
-# - the 'object' variable, which lists all the .o files for which dependencies
+# - the 'objects' variable, which lists all the .o files for which dependencies
 #   should be computed
 # - the prerequisites of the 'all' target
 #
