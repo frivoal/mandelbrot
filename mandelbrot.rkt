@@ -105,10 +105,16 @@
     (send dc set-brush no-brush)
     (send dc set-pen white-pen)
     (define-values (conv-x conv-y) (get-converters w h -2.5 1 -1.5 1.5))
-    (for ([y (in-range 0 h)])
-      (for ([x (in-range 0 w)])
-        (let ([rank (escape (conv-x x) (conv-y y) 50)])
-          (cond [rank (send dc set-pen (vector-ref palete (modulo rank palete-size)))(send dc draw-point x y)] ))))))
+    (define cxs (list->vector (for/list ([x (in-range w)]) (conv-x x))))
+    (define cys (list->vector (for/list ([y (in-range h)]) (conv-y y))))
+    (define (paint rank x y)
+      (send dc set-pen (vector-ref palete (modulo rank palete-size)))
+      (send dc draw-point x y))
+    (for* ([y (in-range h)]
+           [x (in-range w)])
+      (let ([rank (escape (vector-ref cxs x) (vector-ref cys y) 30)])
+        (cond [rank (send dc set-pen (vector-ref palete (modulo rank palete-size)))
+                    (send dc draw-point x y)])))))
 
 ; Show the frame
 (send frame show #t)
