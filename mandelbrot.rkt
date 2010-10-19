@@ -2,16 +2,15 @@
 
 (require racket/gui/base)
 
-(define (Pc z c) (+ (sqr z) c))
-
-(define (escape c limit)
-	(define (escape-helper c acc n)
-		(cond
-			[(> (+ (sqr (real-part acc)) (sqr (imag-part acc))) 4) n]
-			[(= n limit) #f]
-			[else (escape-helper c (Pc acc c) (+ 1 n) )]))
-	(escape-helper c c 0))
-
+(define (escape cx cy limit)
+  (define (escape-helper cx cy acc-x acc-y n)
+    (let ([acc-x2 (sqr acc-x)]
+          [acc-y2 (sqr acc-y)])
+      (cond
+        [(> (+ acc-x2 acc-y2) 4) n]
+        [(= n limit) #f]
+        [else (escape-helper cx cy (+ acc-x2 (- acc-y2) cx) (+ (* 2 acc-x acc-y ) cy) (+ 1 n) )])))
+  (escape-helper cx cy cx cy 0))
 
 (define (get-converters w h x1 x2 y1 y2)
   (define-values (cx1 cx2 cy1 cy2)
@@ -108,7 +107,7 @@
     (define-values (conv-x conv-y) (get-converters w h -2.5 1 -1.5 1.5))
     (for ([y (in-range 0 h)])
       (for ([x (in-range 0 w)])
-        (let ([rank (escape (make-rectangular (conv-x x) (conv-y y)) 50)])
+        (let ([rank (escape (conv-x x) (conv-y y) 50)])
           (cond [rank (send dc set-pen (vector-ref palete (modulo rank palete-size)))(send dc draw-point x y)] ))))))
 
 ; Show the frame
