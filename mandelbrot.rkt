@@ -45,56 +45,26 @@
 (define black-brush (make-object brush% "BLACK" 'solid))
 (define white-pen (make-object pen% "WHITE" 1 'solid))
 
-; Make the color palete
-(define palete-size 32)
-(define palete 
-  (let ([part1 (for/list ([i (in-range 0 (/ palete-size 3))])
-    (let ([step (floor (/ 256 (/ palete-size 3)))])
-      (make-object pen%
-        (make-object color%
-          0
-          (* i step )
-          (+ 64 (floor (* i (/ (* 3 step) 4)))))
-        1 'solid)))]
-       [part2 (for/list ([i (in-range 0 (/ palete-size 3))])
-    (let ([step (floor (/ 256 (/ palete-size 3)))])
-      (make-object pen%
-        (make-object color%
-          (* i step)
-          (- 255 (floor (* i (/ (* 3 step) 4))))
-          (- 255 (* i step)))
-        1 'solid)))]
-       [part3 (for/list ([i (in-range 0 (/ palete-size 3))])
-    (let ([step (floor (/ 256 (/ palete-size 3)))])
-      (make-object pen%
-        (make-object color%
-          (- 255 (* i step))
-          (- 127 (floor (* i (/ step 2))))
-          (floor (* i (/ step 4))))
-        1 'solid)))])
-    (list->vector (append part1 part2 part3))))
+(define (make-palette nb-split colors)
+  (define (gradient nb-steps s e)
+    (let* ([spread (- e s)]
+           [step (/ spread nb-steps)])
+      (for/list ([i (in-range nb-steps)])
+        (round (+ s (* i step))))))
+  (define (rgb-gradient nb-steps s e)
+    (for/list ([r (in-list (gradient nb-steps (car s) (car e)))]
+               [g (in-list (gradient nb-steps (cadr s) (cadr e)))]
+               [b (in-list (gradient nb-steps (caddr s) (caddr e)))])
+      (list r g b)))
+  (define (palette-helper nb-steps colors)
+    (if (eq? (cdr colors) '())
+        (list (car colors))
+        (append (rgb-gradient nb-steps (car colors)(cadr colors))(palette-helper nb-steps (cdr colors)))))
+  (list->vector (map (lambda (c)(make-object pen% (make-object color% (car c) (cadr c) (caddr c)) 1 'solid)) (palette-helper (+ nb-split 1) colors))))
 
-;(define palete 
-;  (let ([half (for/list ([i (in-range 0 (/ palete-size 2))])
-;    (let ([step (floor (/ 256 (/ palete-size 2)))])
-;      (make-object pen%
-;        (make-object color%
-;          0
-;          (* i step )
-;          (+ 64 (* i (/ (* 3 step) 4))))
-;        1 'solid)))])
-;    (list->vector (append half (reverse half)))))
-
-;(define palete 
-;  (let ([half (for/list ([i (in-range 0 (/ palete-size 2))])
-;    (let ([step (floor (/ 256 (/ palete-size 2)))])
-;      (make-object pen%
-;        (make-object color%
-;          (+ 127 (* i (/ step 2)))
-;          (* i (/ step 2))
-;          0)
-;        1 'solid)))])
-;    (list->vector (append half (reverse half)))))
+;(define palette (make-palette 5 '((127 0 0)(255 127 0)(127 0 0))))
+(define palette (make-palette 5 '((0 0 64)(0 255 255)(255 128 0)(0 0 64))))
+(define palette-size (vector-length palette))
 
 
 (define (draw-mandelbrot dc)
@@ -107,13 +77,10 @@
     (define-values (conv-x conv-y) (get-converters w h -2.5 1 -1.5 1.5))
     (define cxs (list->vector (for/list ([x (in-range w)]) (conv-x x))))
     (define cys (list->vector (for/list ([y (in-range h)]) (conv-y y))))
-    (define (paint rank x y)
-      (send dc set-pen (vector-ref palete (modulo rank palete-size)))
-      (send dc draw-point x y))
     (for* ([y (in-range h)]
            [x (in-range w)])
       (let ([rank (escape (vector-ref cxs x) (vector-ref cys y) 30)])
-        (cond [rank (send dc set-pen (vector-ref palete (modulo rank palete-size)))
+        (cond [rank (send dc set-pen (vector-ref palette (modulo rank palette-size)))
                     (send dc draw-point x y)])))))
 
 ; Show the frame
