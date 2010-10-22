@@ -41,26 +41,26 @@
 
 ; Make some pens and brushes
 (define no-pen (make-object pen% "BLACK" 1 'transparent))
-(define no-brush (make-object brush% "BLACK" 'transparent))
 (define black-brush (make-object brush% "BLACK" 'solid))
-(define white-pen (make-object pen% "WHITE" 1 'solid))
 
 (define (make-palette nb-split colors)
   (define (gradient nb-steps s e)
-    (let* ([spread (- e s)]
-           [step (/ spread nb-steps)])
-      (for/list ([i (in-range nb-steps)])
-        (round (+ s (* i step))))))
+    (let ([step (/ (- e s) nb-steps)])
+      (build-list nb-steps
+        (lambda (i) (round (+ s (* i step)))))))
   (define (rgb-gradient nb-steps s e)
-    (for/list ([r (in-list (gradient nb-steps (car s) (car e)))]
-               [g (in-list (gradient nb-steps (cadr s) (cadr e)))]
-               [b (in-list (gradient nb-steps (caddr s) (caddr e)))])
-      (list r g b)))
+    (map (lambda (r g b) (list r g b))
+         (gradient nb-steps (car s) (car e))
+         (gradient nb-steps (cadr s) (cadr e))
+         (gradient nb-steps (caddr s) (caddr e))))
   (define (palette-helper nb-steps colors)
     (if (eq? (cdr colors) '())
         (list (car colors))
-        (append (rgb-gradient nb-steps (car colors)(cadr colors))(palette-helper nb-steps (cdr colors)))))
-  (list->vector (map (lambda (c)(make-object pen% (make-object color% (car c) (cadr c) (caddr c)) 1 'solid)) (palette-helper (+ nb-split 1) colors))))
+        (append (rgb-gradient nb-steps (car colors)(cadr colors))
+                (palette-helper nb-steps (cdr colors)))))
+  (list->vector
+    (map (lambda (c) (make-object pen% (make-object color% (car c) (cadr c) (caddr c)) 1 'solid))
+         (palette-helper (+ nb-split 1) colors))))
 
 ;(define palette (make-palette 5 '((127 0 0)(255 127 0)(127 0 0))))
 (define palette (make-palette 5 '((0 0 64)(0 255 255)(255 128 0)(0 0 64))))
@@ -72,8 +72,6 @@
     (send dc set-pen no-pen)
     (send dc set-brush black-brush)
     (send dc draw-rectangle 0 0 w h)
-    (send dc set-brush no-brush)
-    (send dc set-pen white-pen)
     (define-values (conv-x conv-y) (get-converters w h -2.5 1 -1.5 1.5))
     (define cxs (list->vector (for/list ([x (in-range w)]) (conv-x x))))
     (define cys (list->vector (for/list ([y (in-range h)]) (conv-y y))))
