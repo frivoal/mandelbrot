@@ -25,7 +25,6 @@
     (lambda (x) (+ cx1 (* (- cx2 cx1) (/ (+ x 0.5) w))))
     (lambda (y) (+ cy1 (* (- cy2 cy1) (/ (- h (+ y 0.5)) h))))))
 
-
 ; Make a 300 x 300 frame
   (define frame (new frame% [label "Mandelbrot"]
                             [width 300]
@@ -33,15 +32,14 @@
 ; Make the drawing area with a paint callback
 (define canvas
   (new canvas% [parent frame]
+               [style (list 'no-autoclear)]
                [paint-callback
                 (lambda (canvas dc) (draw-mandelbrot dc))]))
 
-; Get the canvas's drawing context
-(define dc (send canvas get-dc))
-
 ; Make some pens and brushes
-(define no-pen (make-object pen% "BLACK" 1 'transparent))
 (define black-brush (make-object brush% "BLACK" 'solid))
+(define black-pen (make-object pen% "BLACK" 1 'solid))
+(define no-pen (make-object pen% "BLACK" 1 'transparent))
 
 (define (make-palette nb-split colors)
   (define (gradient nb-steps s e)
@@ -58,28 +56,48 @@
         (list (car colors))
         (append (rgb-gradient nb-steps (car colors)(cadr colors))
                 (palette-helper nb-steps (cdr colors)))))
-  (list->vector
-    (map (lambda (c) (make-object pen% (make-object color% (car c) (cadr c) (caddr c)) 1 'solid))
-         (palette-helper (+ nb-split 1) colors))))
+  (let ([colors (map (lambda (c) (make-object color% (car c) (cadr c) (caddr c)))
+                     (palette-helper (+ nb-split 1) colors))])
+    (values
+      (list->vector (map (lambda (c) (make-object pen% c 1 'solid)) colors))
+      (list->vector (map (lambda (c) (make-object brush% c 'solid)) colors)))))
 
 ;(define palette (make-palette 5 '((127 0 0)(255 127 0)(127 0 0))))
-(define palette (make-palette 5 '((0 0 64)(0 255 255)(255 128 0)(0 0 64))))
-(define palette-size (vector-length palette))
+(define-values (pens brushes) (make-palette 5 '((0 0 64)(0 255 255)(255 128 0)(0 0 64))))
+(define palette-size (vector-length pens))
 
+(define painter-thread #f)
 
 (define (draw-mandelbrot dc)
-  (let-values (((w h) (send dc get-size)))
-    (send dc set-pen no-pen)
-    (send dc set-brush black-brush)
-    (send dc draw-rectangle 0 0 w h)
-    (define-values (conv-x conv-y) (get-converters w h -2.5 1 -1.5 1.5))
-    (define cxs (list->vector (for/list ([x (in-range w)]) (conv-x x))))
-    (define cys (list->vector (for/list ([y (in-range h)]) (conv-y y))))
-    (for* ([y (in-range h)]
-           [x (in-range w)])
-      (let ([rank (escape (vector-ref cxs x) (vector-ref cys y) 30)])
-        (cond [rank (send dc set-pen (vector-ref palette (modulo rank palette-size)))
-                    (send dc draw-point x y)])))))
+  (cond [(thread? painter-thread)
+    (kill-thread painter-thread)])
+  (set! painter-thread (thread (lambda ()
+    (let-values (((w h) (send dc get-size)))
+      (send dc set-pen no-pen)
+      (for ([i (in-list '(16 4))])
+        (define zw (ceiling (/ w i)))
+        (define zh (ceiling (/ h i)))
+        (define-values (conv-x conv-y) (get-converters zw zh -2.5 1 -1.5 1.5))
+        (define cxs (list->vector (for/list ([x (in-range zw)]) (conv-x x))))
+        (define cys (list->vector (for/list ([y (in-range zh)]) (conv-y y))))
+        (for* ([y (in-range 0 zh)]
+               [x (in-range 0 zw)])
+          (let ([rank (escape (vector-ref cxs x) (vector-ref cys y) (round 50))])
+            (if rank
+                (send dc set-brush (vector-ref brushes (modulo rank palette-size)))
+                (send dc set-brush black-brush))
+            (send dc draw-rectangle (* x i) (* y i) i i))))
+     (define-values (conv-x conv-y) (get-converters w h -2.5 1 -1.5 1.5))
+     (define cxs (list->vector (for/list ([x (in-range w)]) (conv-x x))))
+      (define cys (list->vector (for/list ([y (in-range h)]) (conv-y y))))
+      (for* ([y (in-range h)]
+             [x (in-range w)])
+        (let ([rank (escape (vector-ref cxs x) (vector-ref cys y) 50)])
+          (if rank
+            (send dc set-pen (vector-ref pens (modulo rank palette-size)))
+            (send dc set-pen black-pen))
+          (send dc draw-point x y)))
+  )))))
 
 ; Show the frame
 (send frame show #t)
