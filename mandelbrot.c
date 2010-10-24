@@ -4,8 +4,8 @@
 
 unsigned int escape(double x, double y, int limit)
 {
-	double z_x = 0;
-	double z_y = 0;
+	double z_x = x;
+	double z_y = y;
 	double z_x2;
 	double z_y2;
 	int i = 0;
@@ -62,11 +62,6 @@ double conv_y( struct converter *c, unsigned int y)
 }
 
 
-void destroy(GtkWidget * widget, gpointer data)
-{
-	gtk_main_quit();
-}
-
 unsigned int index_clip(unsigned int i,unsigned int max)
 {
 	if (!i)
@@ -81,6 +76,11 @@ struct color {
 	unsigned char b;
 };
 
+struct palette {
+	unsigned int size;
+	struct color *c;
+};
+
 unsigned int interpolate_colors(unsigned int split, struct color *src, unsigned int size, struct color *dst)
 {
 	if (size < 2)
@@ -92,7 +92,7 @@ unsigned int interpolate_colors(unsigned int split, struct color *src, unsigned 
 			double r_step = (src[i + 1].r - src[i].r) / ((double)split + 1);
 			double g_step = (src[i + 1].g - src[i].g) / ((double)split + 1);
 			double b_step = (src[i + 1].b - src[i].b) / ((double)split + 1);
-			for (unsigned int j = 0; j < split + 1; j++) {
+			for (unsigned int j = 1; j < split + 1; j++) {
 				res->r = (unsigned char)(src[i].r + j * r_step);
 				res->g = (unsigned char)(src[i].g + j * g_step);
 				res->b = (unsigned char)(src[i].b + j * b_step);
@@ -124,14 +124,9 @@ void destroy_gc_palette(GdkGC **p, unsigned int size)
 
 gboolean paint( GtkWidget * widget, GdkEventExpose * event, gpointer data )
 {
-	struct color p1[] = {{0, 0, 0}, {255, 0, 0}, {0, 0, 255}};
-
-	unsigned int size = interpolate_colors(5,p1,3,NULL);
-	struct color *p2 = g_malloc(sizeof(struct color) * size);
-	GdkGC **gcs = g_malloc(sizeof(GdkGC*) * size);
-
-	interpolate_colors(5,p1,3,p2);
-	init_gc_palette(p2, size, gcs, widget->window);
+	struct palette *p = (struct palette*)data;
+	GdkGC **gcs = g_malloc(sizeof(GdkGC*) * p->size);
+	init_gc_palette(p->c, p->size, gcs, widget->window);
 
 	int w = widget->allocation.width;
 	int h = widget->allocation.height;
@@ -148,7 +143,7 @@ gboolean paint( GtkWidget * widget, GdkEventExpose * event, gpointer data )
 	{
 		for (int x = 0; x < w; x++)
 		{
-			gdk_draw_point(widget->window, gcs[index_clip(escape(xs[x], ys[y], 30),size - 1)], x, y);
+			gdk_draw_point(widget->window, gcs[index_clip(escape(xs[x], ys[y], 100), p->size - 1)], x, y);
 		}
 	}
 	g_free(xs);
@@ -159,17 +154,38 @@ gboolean paint( GtkWidget * widget, GdkEventExpose * event, gpointer data )
 	return TRUE;
 }
 
+void set_palette( struct palette *p, struct color *c, unsigned int size,  unsigned int splits)
+{
+	p->size = 1 + interpolate_colors(splits, c, size, NULL);
+	g_free(p->c);
+	p->c = g_malloc(sizeof(struct color) * p->size);
+	struct color black = {0, 0, 0};
+	p->c[0] = black;
+	interpolate_colors(splits, c, size, p->c+1);
+}
+
+void destroy(GtkWidget * widget, gpointer data)
+{
+	struct palette *p = (struct palette*)data;
+	g_free( p->c );
+	gtk_main_quit();
+}
+
 int main(int argc, char *argv[])
 {
 	gtk_init(&argc, &argv);
 
+	struct palette p = {0, NULL};
+	struct color c[] = {{0, 0, 64}, {0, 255, 255}, {255, 128, 0}, {0, 0, 64}};
+	set_palette( &p, c, sizeof(c)/sizeof(struct color), 15);
+
 	GtkWidget *window = gtk_window_new(GTK_WINDOW_TOPLEVEL);
 	gtk_window_resize(GTK_WINDOW(window), 300, 300);
-	g_signal_connect( G_OBJECT(window), "destroy", G_CALLBACK(destroy), NULL);
+	g_signal_connect( G_OBJECT(window), "destroy", G_CALLBACK(destroy), &p);
 
 	GtkWidget *draw_area = gtk_drawing_area_new();
 	gtk_container_add( GTK_CONTAINER(window), GTK_WIDGET(draw_area) );
-	g_signal_connect( draw_area, "expose-event", G_CALLBACK(paint), NULL );
+	g_signal_connect( draw_area, "expose-event", G_CALLBACK(paint), &p );
 
 	gtk_widget_show(draw_area);
 	gtk_widget_show(window);
