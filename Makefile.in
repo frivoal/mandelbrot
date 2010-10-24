@@ -1,0 +1,12 @@
+GTK_CFLAGS=@GTK_CFLAGS@
+GTK_LIBS=@GTK_LIBS@
+
+CFLAGS += -std=c99 -Wall $(GTK_CFLAGS)
+LDFLAGS += $(GTK_LIBS)
+mandelbrot: mandelbrot.c
+
+.PHONY: clean distclean
+clean:
+	rm -f mandelbrot
+distclean: clean
+	rm -rf aclocal.m4 autom4te.cache config.log config.status configure Makefile
