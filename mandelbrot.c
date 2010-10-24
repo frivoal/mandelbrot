@@ -75,20 +75,54 @@ unsigned int index_clip(unsigned int i,unsigned int max)
 		return (i - 1) % max + 1;
 }
 
+struct color {
+	unsigned char r;
+	unsigned char g;
+	unsigned char b;
+};
+
+unsigned int interpolate_colors(unsigned int split, struct color *src, unsigned int size, struct color *dst)
+{
+	if (size < 2)
+		return 0;
+	if (dst) {
+		struct color *res = dst;
+		for (unsigned int i = 0; i < size - 1; i++) {
+			*res++ = src[i];
+		}
+		*res++ = src[size - 1];
+	}
+	return (size - 1)* (split  + 1) + 1;
+}
+
+void init_gc_palette(struct color *src, unsigned int size, GdkGC **dst, GdkDrawable *d)
+{
+	GdkColor c;
+	for( unsigned int i = 0; i < size; i++) {
+		c.red = src[i].r << 8;
+		c.green = src[i].g << 8;
+		c.blue = src[i].b << 8;
+		dst[i] = gdk_gc_new(d);
+		gdk_gc_set_rgb_fg_color(dst[i], &c);
+	}
+}
+
+void destroy_gc_palette(GdkGC **p, unsigned int size)
+{
+	for( unsigned int i = 0; i < size; i++)
+		g_object_unref(p[i]);
+}
+
 gboolean paint( GtkWidget * widget, GdkEventExpose * event, gpointer data )
 {
-	GdkGC *gcs[2];
-	gcs[0] = gdk_gc_new( widget->window );
-	gcs[1] = gdk_gc_new( widget->window );
-	GdkColor color;
-	color.red = 0;
-	color.green = 0;
-	color.blue = 0;
-	gdk_gc_set_rgb_fg_color( gcs[0], &color );
-	color.red = 0xFFFF;
-	color.green = 0xFFFF;
-	color.blue = 0xFFFF;
-	gdk_gc_set_rgb_fg_color( gcs[1], &color );
+	struct color p1[] = {{0, 0, 0}, {255, 0, 0}, {0, 0, 255}};
+
+	unsigned int size = interpolate_colors(0,p1,3,NULL);
+	struct color *p2 = g_malloc(sizeof(struct color) * size);
+	GdkGC **gcs = g_malloc(sizeof(GdkGC*) * size);
+
+	interpolate_colors(0,p1,3,p2);
+	init_gc_palette(p2, size, gcs, widget->window);
 
 	int w = widget->allocation.width;
 	int h = widget->allocation.height;
@@ -105,14 +139,14 @@ gboolean paint( GtkWidget * widget, GdkEventExpose * event, gpointer data )
 	{
 		for (int x = 0; x < w; x++)
 		{
-			gdk_draw_point(widget->window, gcs[index_clip(escape(xs[x], ys[y], 30),1)], x, y);
+			gdk_draw_point(widget->window, gcs[index_clip(escape(xs[x], ys[y], 30),size - 1)], x, y);
 		}
 	}
 	g_free(xs);
 	g_free(ys);
 
-	g_object_unref(gcs[0]);
-	g_object_unref(gcs[1]);
+	destroy_gc_palette(gcs, 3);
+
 	return TRUE;
 }
 
