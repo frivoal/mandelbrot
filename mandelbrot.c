@@ -89,6 +89,15 @@ unsigned int interpolate_colors(unsigned int split, struct color *src, unsigned 
 		struct color *res = dst;
 		for (unsigned int i = 0; i < size - 1; i++) {
 			*res++ = src[i];
+			double r_step = (src[i + 1].r - src[i].r) / ((double)split + 1);
+			double g_step = (src[i + 1].g - src[i].g) / ((double)split + 1);
+			double b_step = (src[i + 1].b - src[i].b) / ((double)split + 1);
+			for (unsigned int j = 0; j < split + 1; j++) {
+				res->r = (unsigned char)(src[i].r + j * r_step);
+				res->g = (unsigned char)(src[i].g + j * g_step);
+				res->b = (unsigned char)(src[i].b + j * b_step);
+				res++;
+			}
 		}
 		*res++ = src[size - 1];
 	}
@@ -117,11 +126,11 @@ gboolean paint( GtkWidget * widget, GdkEventExpose * event, gpointer data )
 {
 	struct color p1[] = {{0, 0, 0}, {255, 0, 0}, {0, 0, 255}};
 
-	unsigned int size = interpolate_colors(0,p1,3,NULL);
+	unsigned int size = interpolate_colors(5,p1,3,NULL);
 	struct color *p2 = g_malloc(sizeof(struct color) * size);
 	GdkGC **gcs = g_malloc(sizeof(GdkGC*) * size);
 
-	interpolate_colors(0,p1,3,p2);
+	interpolate_colors(5,p1,3,p2);
 	init_gc_palette(p2, size, gcs, widget->window);
 
 	int w = widget->allocation.width;
