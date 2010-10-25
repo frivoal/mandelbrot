@@ -2,17 +2,17 @@
 #include <stdbool.h>
 #include <gtk/gtk.h>
 
-unsigned int escape(double x, double y, int limit)
+int escape(double x, double y, int limit)
 {
 	double z_x = x;
 	double z_y = y;
 	double z_x2;
 	double z_y2;
-	int i = 0;
+	int i = -1;
 
 	do {
 		if (i++ == limit)
-			return 0;
+			return -1;
 		z_x2 = z_x * z_x;
 		z_y2 = z_y * z_y;
 		z_y = 2 * z_x *z_y + y;
@@ -59,15 +59,6 @@ double conv_x( struct converter *c, unsigned int x)
 double conv_y( struct converter *c, unsigned int y)
 {
 	 return - (double)y  * c->y_scale  + c->y_offset;
-}
-
-
-unsigned int index_clip(unsigned int i,unsigned int max)
-{
-	if (!i)
-		return 0;
-	else
-		return (i - 1) % max + 1;
 }
 
 struct color {
@@ -125,8 +116,10 @@ void destroy_gc_palette(GdkGC **p, unsigned int size)
 gboolean paint( GtkWidget * widget, GdkEventExpose * event, gpointer data )
 {
 	struct palette *p = (struct palette*)data;
-	GdkGC **gcs = g_malloc(sizeof(GdkGC*) * p->size);
-	init_gc_palette(p->c, p->size, gcs, widget->window);
+	GdkGC **gc = g_malloc(sizeof(GdkGC*) * p->size);
+	init_gc_palette(p->c, p->size, gc, widget->window);
+	GdkGC **shifted_gc = gc + 1;
+	int size = p->size -1;
 
 	int w = widget->allocation.width;
 	int h = widget->allocation.height;
@@ -143,13 +136,13 @@ gboolean paint( GtkWidget * widget, GdkEventExpose * event, gpointer data )
 	{
 		for (int x = 0; x < w; x++)
 		{
-			gdk_draw_point(widget->window, gcs[index_clip(escape(xs[x], ys[y], 100), p->size - 1)], x, y);
+			gdk_draw_point(widget->window, shifted_gc[escape(xs[x], ys[y], 100) % size], x, y);
 		}
 	}
 	g_free(xs);
 	g_free(ys);
 
-	destroy_gc_palette(gcs, 3);
+	destroy_gc_palette(gc, 3);
 
 	return TRUE;
 }
