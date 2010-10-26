@@ -67,9 +67,11 @@ struct color {
 	unsigned char b;
 };
 
-struct palette {
+struct paint_env {
 	unsigned int size;
 	struct color *c;
+	double l, r, b, t;
+	int iter;
 };
 
 unsigned int interpolate_colors(unsigned int split, struct color *src, unsigned int size, struct color *dst)
@@ -115,7 +117,7 @@ void destroy_gc_palette(GdkGC **p, unsigned int size)
 
 gboolean paint( GtkWidget * widget, GdkEventExpose * event, gpointer data )
 {
-	struct palette *p = (struct palette*)data;
+	struct paint_env *p = (struct paint_env*)data;
 	GdkGC **gc = g_malloc(sizeof(GdkGC*) * p->size);
 	init_gc_palette(p->c, p->size, gc, widget->window);
 	GdkGC **shifted_gc = gc + 1;
@@ -125,7 +127,7 @@ gboolean paint( GtkWidget * widget, GdkEventExpose * event, gpointer data )
 	int h = widget->allocation.height;
 
 	struct converter c;
-	init_converter(&c, w, h, -2.5, 1, -1.5, 1.5);
+	init_converter(&c, w, h, p->l, p->r, p->b, p->t);
 	double *xs = g_malloc(sizeof(double)*w);
 	double *ys = g_malloc(sizeof(double)*h);
 	for (int x = 0; x < w; x++)
@@ -136,7 +138,7 @@ gboolean paint( GtkWidget * widget, GdkEventExpose * event, gpointer data )
 	{
 		for (int x = 0; x < w; x++)
 		{
-			gdk_draw_point(widget->window, shifted_gc[escape(xs[x], ys[y], 100) % size], x, y);
+			gdk_draw_point(widget->window, shifted_gc[escape(xs[x], ys[y], p->iter) % size], x, y);
 		}
 	}
 	g_free(xs);
@@ -147,7 +149,7 @@ gboolean paint( GtkWidget * widget, GdkEventExpose * event, gpointer data )
 	return TRUE;
 }
 
-void set_palette( struct palette *p, struct color *c, unsigned int size,  unsigned int splits)
+void set_palette( struct paint_env *p, struct color *c, unsigned int size,  unsigned int splits)
 {
 	p->size = 1 + interpolate_colors(splits, c, size, NULL);
 	g_free(p->c);
@@ -159,16 +161,42 @@ void set_palette( struct palette *p, struct color *c, unsigned int size,  unsign
 
 void destroy(GtkWidget * widget, gpointer data)
 {
-	struct palette *p = (struct palette*)data;
+	struct paint_env *p = (struct paint_env*)data;
 	g_free( p->c );
 	gtk_main_quit();
+}
+
+gboolean click( GtkWidget * widget, GdkEventButton * event, gpointer data )
+{
+	struct paint_env * p = (struct paint_env*)data;
+	if (event->button == 3) {
+		p->iter += 10;
+		gdk_window_invalidate_rect(widget->window, NULL, FALSE);
+	} else if (event->button == 1) {
+		double x = event->x;
+		double y = event->y;
+		int w = widget->allocation.width;
+		int h = widget->allocation.height;
+		struct converter c;
+		init_converter(&c, w, h, p->l, p->r, p->b, p->t);
+		double center_x = p->l + (p->r - p->l) * x / w;
+		double center_y = p->b + (p->t - p->b) * (h - y) / h;
+		double zoomed_w = conv_x(&c, w) - conv_x(&c, 0);
+		double zoomed_h = conv_y(&c, 0) - conv_y(&c, h);
+		p->l = center_x - zoomed_w / 2.5;
+		p->r = center_x + zoomed_w / 2.5;
+		p->b = center_y - zoomed_h / 2.5;
+		p->t = center_y + zoomed_h / 2.5;
+		gdk_window_invalidate_rect(widget->window, NULL, FALSE);
+	}
+	return TRUE;
 }
 
 int main(int argc, char *argv[])
 {
 	gtk_init(&argc, &argv);
 
-	struct palette p = {0, NULL};
+	struct paint_env p = {0, NULL, -2.5, 1, -1.5, 1.5, 30};
 	struct color c[] = {{0, 0, 64}, {0, 255, 255}, {255, 128, 0}, {0, 0, 64}};
 	set_palette( &p, c, sizeof(c)/sizeof(struct color), 15);
 
@@ -179,6 +207,8 @@ int main(int argc, char *argv[])
 	GtkWidget *draw_area = gtk_drawing_area_new();
 	gtk_container_add( GTK_CONTAINER(window), GTK_WIDGET(draw_area) );
 	g_signal_connect( draw_area, "expose-event", G_CALLBACK(paint), &p );
+	g_signal_connect( draw_area, "button-press-event", G_CALLBACK(click), &p );
+	gtk_widget_add_events(draw_area, GDK_BUTTON_PRESS_MASK);
 
 	gtk_widget_show(draw_area);
 	gtk_widget_show(window);
