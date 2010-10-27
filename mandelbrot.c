@@ -72,6 +72,8 @@ struct paint_env {
 	struct color *c;
 	double l, r, b, t;
 	int iter;
+	int w, h;
+	int *set;
 };
 
 unsigned int interpolate_colors(unsigned int split, struct color *src, unsigned int size, struct color *dst)
@@ -115,6 +117,29 @@ void destroy_gc_palette(GdkGC **p, unsigned int size)
 		g_object_unref(p[i]);
 }
 
+void render(struct paint_env *p)
+{
+	double *xs = g_malloc(sizeof(double) * p->w);
+	double *ys = g_malloc(sizeof(double) * p->h);
+
+	struct converter c;
+	init_converter(&c, p->w, p->h, p->l, p->r, p->b, p->t);
+	for (int x = 0; x < p->w; x++)
+		xs[x] = conv_x(&c, x);
+	for (int y = 0; y < p->h; y++)
+		ys[y] = conv_y(&c, y);
+
+	for (int y = 0; y < p->h; y++)
+	{
+		for (int x = 0; x < p->w; x++)
+		{
+			p->set[y * p->w + x] = escape(xs[x], ys[y], p->iter);
+		}
+	}
+	g_free(xs);
+	g_free(ys);
+}
+
 gboolean paint( GtkWidget * widget, GdkEventExpose * event, gpointer data )
 {
 	struct paint_env *p = (struct paint_env*)data;
@@ -123,26 +148,21 @@ gboolean paint( GtkWidget * widget, GdkEventExpose * event, gpointer data )
 	GdkGC **shifted_gc = gc + 1;
 	int size = p->size -1;
 
-	int w = widget->allocation.width;
-	int h = widget->allocation.height;
+	p->w = widget->allocation.width;
+	p->h = widget->allocation.height;
 
-	struct converter c;
-	init_converter(&c, w, h, p->l, p->r, p->b, p->t);
-	double *xs = g_malloc(sizeof(double)*w);
-	double *ys = g_malloc(sizeof(double)*h);
-	for (int x = 0; x < w; x++)
-		xs[x] = conv_x(&c, x);
-	for (int y = 0; y < h; y++)
-		ys[y] = conv_y(&c, y);
-	for (int y = 0; y < h; y++)
+	p->set = g_malloc(sizeof(int) * p->w * p->h);
+
+	render(p);
+
+	for (int y = 0; y < p->h; y++)
 	{
-		for (int x = 0; x < w; x++)
+		for (int x = 0; x < p->w; x++)
 		{
-			gdk_draw_point(widget->window, shifted_gc[escape(xs[x], ys[y], p->iter) % size], x, y);
+			gdk_draw_point(widget->window, shifted_gc[p->set[y * p->w + x] % size], x, y);
 		}
 	}
-	g_free(xs);
-	g_free(ys);
+	g_free(p->set);
 
 	destroy_gc_palette(gc, 3);
 
@@ -196,7 +216,7 @@ int main(int argc, char *argv[])
 {
 	gtk_init(&argc, &argv);
 
-	struct paint_env p = {0, NULL, -2.5, 1, -1.5, 1.5, 30};
+	struct paint_env p = {0, NULL, -2.5, 1, -1.5, 1.5, 30, 0, 0, NULL};
 	struct color c[] = {{0, 0, 64}, {0, 255, 255}, {255, 128, 0}, {0, 0, 64}};
 	set_palette( &p, c, sizeof(c)/sizeof(struct color), 15);
 
