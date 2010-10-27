@@ -143,28 +143,26 @@ void render(struct paint_env *p)
 gboolean paint( GtkWidget * widget, GdkEventExpose * event, gpointer data )
 {
 	struct paint_env *p = (struct paint_env*)data;
-	GdkGC **gc = g_malloc(sizeof(GdkGC*) * p->size);
-	init_gc_palette(p->c, p->size, gc, widget->window);
-	GdkGC **shifted_gc = gc + 1;
-	int size = p->size -1;
 
-	p->w = widget->allocation.width;
-	p->h = widget->allocation.height;
+	if (p->set) {
+		GdkGC **gc = g_malloc(sizeof(GdkGC*) * p->size);
+		init_gc_palette(p->c, p->size, gc, widget->window);
+		GdkGC **shifted_gc = gc + 1;
+		int size = p->size -1;
 
-	p->set = g_malloc(sizeof(int) * p->w * p->h);
+		int w = MIN( widget->allocation.width, p->w);
+		int h = MIN( widget->allocation.height, p->h);
 
-	render(p);
-
-	for (int y = 0; y < p->h; y++)
-	{
-		for (int x = 0; x < p->w; x++)
+		for (int y = 0; y < h; y++)
 		{
-			gdk_draw_point(widget->window, shifted_gc[p->set[y * p->w + x] % size], x, y);
+			for (int x = 0; x < w; x++)
+			{
+				gdk_draw_point(widget->window, shifted_gc[p->set[y * p->w + x] % size], x, y);
+			}
 		}
-	}
-	g_free(p->set);
 
-	destroy_gc_palette(gc, 3);
+		destroy_gc_palette(gc, 3);
+	}
 
 	return TRUE;
 }
@@ -191,6 +189,7 @@ gboolean click( GtkWidget * widget, GdkEventButton * event, gpointer data )
 	struct paint_env * p = (struct paint_env*)data;
 	if (event->button == 3) {
 		p->iter += 10;
+		render(p);
 		gdk_window_invalidate_rect(widget->window, NULL, FALSE);
 	} else if (event->button == 1) {
 		double x = event->x;
@@ -207,11 +206,27 @@ gboolean click( GtkWidget * widget, GdkEventButton * event, gpointer data )
 		p->r = center_x + zoomed_w / 2.5;
 		p->b = center_y - zoomed_h / 2.5;
 		p->t = center_y + zoomed_h / 2.5;
+		render(p);
 		gdk_window_invalidate_rect(widget->window, NULL, FALSE);
 	}
 	return TRUE;
 }
 
+gboolean resize(GtkWidget *w, GdkEventConfigure *event, gpointer data)
+{
+	struct paint_env *p= (struct paint_env*)data;
+	if (event->width != p->w || event->height != p->h)
+	{
+		g_free(p->set);
+		p->w = event->width;
+		p->h = event->height;
+		p->set = g_malloc0(p->w * p->h * sizeof(int));
+		render(p);
+	}
+	gdk_window_invalidate_rect(w->window, NULL, FALSE);
+
+	return TRUE;
+}
 int main(int argc, char *argv[])
 {
 	gtk_init(&argc, &argv);
@@ -228,6 +243,7 @@ int main(int argc, char *argv[])
 	gtk_container_add( GTK_CONTAINER(window), GTK_WIDGET(draw_area) );
 	g_signal_connect( draw_area, "expose-event", G_CALLBACK(paint), &p );
 	g_signal_connect( draw_area, "button-press-event", G_CALLBACK(click), &p );
+	g_signal_connect( draw_area, "configure-event", G_CALLBACK(resize), &p );
 	gtk_widget_add_events(draw_area, GDK_BUTTON_PRESS_MASK);
 
 	gtk_widget_show(draw_area);
