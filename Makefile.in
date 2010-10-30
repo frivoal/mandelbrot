@@ -1,6 +1,6 @@
 # Copyright (c) 2010, Florian Rivoal
 # All rights reserved.
-# 
+#
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions are met:
 #     * Redistributions of source code must retain the above copyright
@@ -8,7 +8,7 @@
 #     * Redistributions in binary form must reproduce the above copyright
 #       notice, this list of conditions and the following disclaimer in the
 #       documentation and/or other materials provided with the distribution.
-# 
+#
 # THIS SOFTWARE IS PROVIDED BY Florian Rivoal ''AS IS'' AND ANY
 # EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
 # WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
@@ -74,7 +74,7 @@ obj_from_src = $(addprefix $(OUTDIR)/,$(patsubst %.c,%.o,$(filter %.c,$1)) $(pat
 add_inc_path = $(eval $1 $(1:.o=.d): CPPFLAGS += $(addprefix -I $(base_path)/,$2))
 
 # -- Default rule --
-.PHONY: all 
+.PHONY: all
 all: ;
 
 ###############################################################################
@@ -88,7 +88,7 @@ all: ;
 #   should be computed
 # - the prerequisites of the 'all' target
 #
-# Keep in mind that generated files should be stored under $(OUTDIR)/ 
+# Keep in mind that generated files should be stored under $(OUTDIR)/
 base_path := .
 src_dirs := src
 
