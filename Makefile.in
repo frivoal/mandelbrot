@@ -31,14 +31,21 @@
 #   tree(s)
 # - Supports putting generated source files in the build tree
 #
-# To use this Makefile, it should be sufficient to edit the section labeled
-# "Project specific section", the rest is meant to be generic and cross
-# project.
+# It is meant to be used together with GNU autoconf. To use this Makefile.in,
+# in addition to creating the configure.ac file, it should be sufficient to
+# edit the section labeled "Project specific section", the rest is meant to be
+# generic and cross project.
 
 # -- User overridable commands --
 MKDIR := mkdir -p
 RM := rm -rf
 AR := ar r
+ifeq ($(origin CC),default)
+ CC := @CC@
+endif
+ifeq ($(origin CXX),default)
+ CXX := @CXX@
+endif
 
 # -- User overridable path --
 OUTDIR ?= $(if $(findstring $(base_path),.),out,$(base_path)/out)
@@ -69,14 +76,6 @@ add_inc_path = $(eval $1 $(1:.o=.d): CPPFLAGS += $(addprefix -I $(base_path)/,$2
 # -- Default rule --
 .PHONY: all 
 all: ;
-
-# -- Top level rules --
-.PHONY: tags clean
-tags:
-	ctags -R $(addprefix $(base_path)/,$(src_dirs))
-
-clean:
-	$(RM) $(OUTDIR) tags
 
 ###############################################################################
 #                      ---- Project specific section ----                     #
@@ -115,6 +114,19 @@ ifeq ($(call deps_unneeded,clean tags %/.exists),)
  include $(patsubst %.o,%.d,$(wildcard $(objects)))
  -include $(OUTDIR)/.exists
 endif
+
+# -- Top level rules --
+.PHONY: tags clean
+tags:
+	ctags -R $(addprefix $(base_path)/,$(src_dirs))
+
+clean-cmd := $(RM) $(OUTDIR) tags
+clean:
+	$(clean-cmd)
+
+Makefile: Makefile.in
+	$(clean-cmd)
+	./config.status
 
 # -- Generic build rules --
 .PRECIOUS: %/.exists
