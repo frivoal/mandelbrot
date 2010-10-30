@@ -40,6 +40,7 @@
 MKDIR := mkdir -p
 RM := rm -rf
 AR := ar r
+TAR := tar
 ifeq ($(origin CC),default)
  CC := @CC@
 endif
@@ -49,6 +50,7 @@ endif
 
 # -- User overridable path --
 OUTDIR ?= $(if $(findstring $(base_path),.),out,$(base_path)/out)
+FULL_NAME ?= @PACKAGE_NAME@-@PACKAGE_VERSION@
 
 # -- Auxiliary functions --
 
@@ -80,17 +82,20 @@ all: ;
 ###############################################################################
 #                      ---- Project specific section ----                     #
 # This section must define at least:
-# - the 'base_path' variable, to which 'src_dirs' and the default value of
-#   'OUTDIR' is relative.
+# - the 'base_path' variable, to which 'src_dirs', 'dist_targets' and the
+#   default value of 'OUTDIR' is relative.
 # - the 'src_dirs' variable, which lists all the directories under which non
 #   generated source code shall be found
 # - the 'objects' variable, which lists all the .o files for which dependencies
 #   should be computed
 # - the prerequisites of the 'all' target
+# - the 'dist_targets' variable, which lists all the directories or files that
+#   should be included in the tarball created by "make dist".
 #
 # Keep in mind that generated files should be stored under $(OUTDIR)/
 base_path := .
 src_dirs := src
+dist_targets := Makefile.in configure $(src_dirs)
 
 sources := $(call find_sources,$(src_dirs))
 objects := $(call obj_from_src,$(sources))
@@ -116,7 +121,7 @@ ifeq ($(call deps_unneeded,clean tags %/.exists),)
 endif
 
 # -- Top level rules --
-.PHONY: tags clean
+.PHONY: tags clean dist
 tags:
 	ctags -R $(addprefix $(base_path)/,$(src_dirs))
 
@@ -128,6 +133,16 @@ Makefile: Makefile.in
 	$(clean-cmd)
 	./config.status
 
+tarball := $(OUTDIR)/$(FULL_NAME).tar.gz
+dist: $(tarball)
+
+.SECONDEXPANSION:
+$(tarball): $(addprefix $(base_path)/,$(dist_targets)) | $$(@D)/.exists
+	$(MKDIR) $(@D)/$(FULL_NAME)
+	$(TAR) c -f - -C $(base_path) $(patsubst $(base_path)/%,%,$^)| tar x -C $(@D)/$(FULL_NAME)
+	$(TAR) czf $@ -C $(@D) $(FULL_NAME)
+	$(RM) $(@D)/$(FULL_NAME)
+
 # -- Generic build rules --
 .PRECIOUS: %/.exists
 %/.exists:
@@ -135,7 +150,6 @@ Makefile: Makefile.in
 	touch $@
 
 VPATH = $(base_path) $(OUTDIR)
-.SECONDEXPANSION:
 %.o: %.c
 $(OUTDIR)/%.d $(OUTDIR)/%.o: %.c $$(@D)/.exists
 	$(COMPILE.c) -MMD -o $(@D)/$(*F).o $<
