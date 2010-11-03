@@ -41,6 +41,9 @@ MKDIR := mkdir -p
 RM := rm -rf
 AR := ar r
 TAR := tar
+INSTALL := install
+INSTALL_PROGRAM := $(INSTALL)
+INSTALL_DATA := $(INSTALL) -m 644
 ifeq ($(origin CC),default)
  CC := @CC@
 endif
@@ -75,9 +78,22 @@ obj_from_src = $(addprefix $(OUTDIR)/,$(patsubst %.c,%.o,$(filter %.c,$1)) $(pat
 ##           files, and of the matching .d files
 add_inc_path = $(eval $1 $(1:.o=.d): CPPFLAGS += $(addprefix -I $(base_path)/,$2))
 
+## Shell command used by the install rules.
+## In most cases, there is no need to use this directly, as specifying ##
+## dependencies to the various install targets should be enough. However, it
+## can be usefull to install files in different paths.
+## @param 1: List of files to install
+## @param 2: Where to install these files
+## @param 3: Optional. When omitted or empty, the file installed is treated as
+##           an executable. Otherwise, it is treated as data.
+install_cmd = $(foreach target,$1,$(if $3,$(INSTALL_DATA),$(INSTALL_PROGRAM)) -D $(target) $2/$(notdir $(target)) &&) true
+
 # -- Default rule --
 .PHONY: all
 all: ;
+
+# -- Install target base path --
+prefix = $(DESTDIR)@prefix@
 
 ###############################################################################
 #                      ---- Project specific section ----                     #
@@ -121,7 +137,7 @@ ifeq ($(call deps_unneeded,clean tags %/.exists),)
 endif
 
 # -- Top level rules --
-.PHONY: tags clean dist
+.PHONY: tags clean dist install install-bin
 tags:
 	ctags -R $(addprefix $(base_path)/,$(src_dirs))
 
@@ -132,6 +148,10 @@ clean:
 Makefile: Makefile.in
 	$(clean-cmd)
 	./config.status
+
+install: install_bin
+install_bin:
+	$(call install_cmd,$^,@bindir@)
 
 tarball := $(OUTDIR)/$(FULL_NAME).tar.gz
 dist: $(tarball)
