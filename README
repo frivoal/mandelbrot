@@ -1,0 +1,57 @@
+==== Introduction ====
+
+This package contains two implementations of a graphical Mandelbrot set
+explorer.
+
+One, implemented in the racket language, was a first exploratory attempt. It is
+simple, but reasonably functional.
+
+The other, implemented in C, aims at doing the same thing as the racket
+version, but more efficiently. It is a work in progress, so while it is already
+faster, it isn't yet as nice to use as the racket version, in that it doesn't
+include progressive rendering, and gives no feedback of what's going on while
+it renders the set for a given zoom level.
+
+
+==== Installation ====
+
+To build this package, run this command:
+  ./configure && make
+
+If you checked it out of the source code repository directly, instead of in a
+packaged tarball, you'll need to run this instead:
+  autoreconf && ./configure && make
+
+To install the C version only, run:
+  make install
+
+For the Racket version, run:
+  make instal_proto
+
+For both version, run:
+  make install_with_proto
+
+The C version depends on GTK2, and the racket version needs racket (or
+gracket, to be specific).
+
+
+==== Usage ====
+
+Both versions have the same interface. Simply start the program by typing its
+name (mandlebrot for the C version, mandelbrot.rkt for the racket version), and
+you'll be presented with a rendering of the Mandelbrot set.
+
+Left click anywhere to zoom in.
+
+Right click to increase the maximum number of iterations used. Doing so slows
+back the rendering, but as you zoom in, you need to do it to get additional
+details.
+
+
+==== Contact information ====
+
+This full source code and history of this package can be found at:
+  https://github.com/frivoal/mandelbrot
+
+The author can be contacted at:
+  frivoal@gmail.com
