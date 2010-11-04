@@ -112,7 +112,7 @@ exec_prefix = @exec_prefix@
 # Keep in mind that generated files should be stored under $(OUTDIR)/
 base_path := .
 src_dirs := src
-dist_targets := Makefile.in configure $(src_dirs) prototype
+dist_targets := Makefile.in configure $(src_dirs) prototype COPYING README
 
 sources := $(call find_sources,$(src_dirs))
 objects := $(call obj_from_src,$(sources))
