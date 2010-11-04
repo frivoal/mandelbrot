@@ -94,6 +94,7 @@ all: ;
 
 # -- Install target base path --
 prefix = $(DESTDIR)@prefix@
+exec_prefix = @exec_prefix@
 
 ###############################################################################
 #                      ---- Project specific section ----                     #
