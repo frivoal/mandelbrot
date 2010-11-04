@@ -122,6 +122,12 @@ override CFLAGS += -Wall -std=c99 $(gtk_cflags)
 
 $(OUTDIR)/mandelbrot: $(objects)
 	$(LINK.c) -o $@ $^ @GTK_LIBS@
+
+.PHONY: install_with_proto install_proto
+install_with_proto: install install_proto
+install_proto: prototype/mandelbrot.rkt
+	$(call install_cmd,$^,@bindir@)
+install_bin: mandelbrot
 #                  ---- End of project specific section ----                  #
 ###############################################################################
 
