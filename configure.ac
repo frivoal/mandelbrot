@@ -1,4 +1,4 @@
-AC_INIT(mandelbrot, 1.0.0)
+AC_INIT(mandelbrot, [1.0.0_alpha])
 
 AC_PROG_CC
 
